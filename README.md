@@ -31,7 +31,7 @@ require("nvs").setup({ key = false })        -- no keymap, call require("nvs").p
 - `fzf` (optional, for the CLI picker)
 - `telescope.nvim` (optional, for the Neovim picker)
 
-## Install
+## Installation
 
 Add the repo directory to your `PATH`:
 
@@ -40,4 +40,13 @@ Add the repo directory to your `PATH`:
 PATH="$HOME/path/to/nvs:$PATH"
 ```
 
-For the Telescope picker, add the repo as a Neovim plugin with your package manager.
+### Telescope Picker
+
+Using [lazy.nvim](https://github.com/folke/lazy.nvim):
+
+```lua
+{
+  "jasonwoodland/nvs",
+  opts = {},
+}
+```
