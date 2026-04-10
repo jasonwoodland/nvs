@@ -8,27 +8,43 @@ Usage: nvs
 EOF
 }
 
+run_with_timeout() {
+  local secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+  else
+    perl -e 'alarm shift @ARGV; exec { $ARGV[0] } @ARGV' "$secs" "$@"
+  fi
+}
+
 server_list() {
-  local servers i sock title_expr cwd_expr title cwd
+  local servers i sock info_expr result title cwd uis attached
 
   servers="$(socket_list)"
   [ -n "$servers" ] || return 0
 
+  info_expr="printf(\"%s\t%s\t%d\", &buftype ==# 'terminal' && !empty(get(b:, 'term_title', '')) ? b:term_title : expand('%:t'), fnamemodify(getcwd(), ':t'), len(nvim_list_uis()))"
+
   i=1
-  echo "$servers" | while IFS= read -r sock; do
+  while IFS= read -r sock; do
     [ -n "$sock" ] || continue
-    title_expr="&buftype ==# 'terminal' ? ((exists('b:term_title') && !empty(b:term_title)) ? b:term_title : expand('%:t')) : expand('%:t')"
-    cwd_expr="printf('%s', fnamemodify(getcwd(), ':t'))"
-    title="$(nvim --server "$sock" --remote-expr "$title_expr" 2>/dev/null || true)"
-    cwd="$(nvim --server "$sock" --remote-expr "$cwd_expr" 2>/dev/null || true)"
-    uis="$(nvim --server "$sock" --remote-expr "len(nvim_list_uis())" 2>/dev/null || echo 0)"
-    [ -n "$title" ] || title="[No Name]"
-    [ -n "$cwd" ] || cwd="-"
-    attached=""
-    [ "$uis" -gt 0 ] 2>/dev/null || attached="[detached]"
+    if result="$(run_with_timeout 1 nvim --server "$sock" --remote-expr "$info_expr" 2>/dev/null)" && [ -n "$result" ]; then
+      IFS=$'\t' read -r title cwd uis <<<"$result"
+      [ -n "$title" ] || title="[No Name]"
+      [ -n "$cwd" ] || cwd="-"
+      attached=""
+      [ "$uis" -gt 0 ] || attached="[detached]"
+    else
+      title="[sock: $sock]"
+      cwd="?"
+      attached=""
+    fi
     printf "%d\t%s\t%s\t%s\t%s\n" "$i" "$cwd" "$title" "$attached" "$sock"
     i=$((i + 1))
-  done
+  done <<<"$servers"
 }
 
 socket_list() {
