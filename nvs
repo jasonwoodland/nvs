@@ -32,11 +32,15 @@ server_list() {
   while IFS= read -r sock; do
     [ -n "$sock" ] || continue
     if result="$(run_with_timeout 1 nvim --server "$sock" --remote-expr "$info_expr" 2>/dev/null)" && [ -n "$result" ]; then
-      IFS=$'\t' read -r title cwd uis <<<"$result"
+      # Split explicitly: read treats tabs as whitespace and drops empty fields.
+      title="${result%%$'\t'*}"
+      result="${result#*$'\t'}"
+      cwd="${result%%$'\t'*}"
+      uis="${result#*$'\t'}"
       [ -n "$title" ] || title="[No Name]"
       [ -n "$cwd" ] || cwd="-"
       attached=""
-      [ "$uis" -gt 0 ] || attached="[detached]"
+      [[ "$uis" =~ ^[0-9]+$ ]] && [ "$uis" -gt 0 ] || attached="[detached]"
     else
       title="[sock: $sock]"
       cwd="?"
